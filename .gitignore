@@ -1,3 +1,8 @@
+# Claude Code / tooling (não vai pro repo)
+.claude/
+.claude-flow/
+.mcp.json
+
 # Dependencies
 node_modules/
 
