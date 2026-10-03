@@ -35,7 +35,16 @@ export function useCamera() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: true,
+        // Defaults (audio: true) apply voice-call processing — echo cancellation,
+        // noise suppression and auto gain — which makes speech sound muffled and
+        // "pumping". Disable it to get the raw mic, like the native camera app.
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          channelCount: { ideal: 2 },
+          sampleRate: { ideal: 48000 },
+        },
       })
       setState((prev) => ({
         ...prev,

@@ -3,11 +3,15 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 
 export type RecordingStatus = 'idle' | 'recording' | 'paused' | 'stopped'
 
+// MP4 first (H.264 + AAC is the most compatible); WebM only as a last resort
+// for browsers that can't record MP4 (e.g. Firefox).
 const MIME_TYPES = [
+  'video/mp4;codecs=avc1,mp4a.40.2',
+  'video/mp4;codecs=avc1,opus',
+  'video/mp4',
   'video/webm;codecs=vp9,opus',
   'video/webm;codecs=vp8,opus',
   'video/webm',
-  'video/mp4',
 ]
 
 function getSupportedMimeType() {
@@ -63,7 +67,12 @@ export function useRecording(stream: MediaStream | null) {
     const mimeType = getSupportedMimeType()
 
     try {
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {})
+      // Browser default audio bitrate is low; request near-native quality.
+      const recorder = new MediaRecorder(stream, {
+        ...(mimeType ? { mimeType } : {}),
+        audioBitsPerSecond: 192_000,
+        videoBitsPerSecond: 5_000_000,
+      })
 
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data)
@@ -71,7 +80,7 @@ export function useRecording(stream: MediaStream | null) {
 
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, {
-          type: mimeType || 'video/webm',
+          type: recorder.mimeType || mimeType || 'video/webm',
         })
         const url = URL.createObjectURL(blob)
         setRecordedBlob(blob)
@@ -119,7 +128,7 @@ export function useRecording(stream: MediaStream | null) {
     if (!recordedUrl || !recordedBlob) return
     const d = new Date()
     const pad = (n: number) => String(n).padStart(2, '0')
-    const name = `teleprompter_${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}.webm`
+    const name = `teleprompter_${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}.${recordedBlob.type.startsWith('video/mp4') ? 'mp4' : 'webm'}`
     const a = document.createElement('a')
     a.href = recordedUrl
     a.download = name
